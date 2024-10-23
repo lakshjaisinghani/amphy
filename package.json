@@ -19,6 +19,7 @@
     "@sveltejs/vite-plugin-svelte": "^4.0.0",
     "@tsconfig/svelte": "^5.0.4",
     "@types/chrome": "^0.0.279",
+    "@types/dom-chromium-ai": "^0.0.2",
     "svelte-check": "^4.0.5",
     "svelte-preprocess": "^6.0.3",
     "typescript": "^5.6.3",
