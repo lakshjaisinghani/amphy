@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount } from "svelte";
+  import { marked } from "marked";
   import { chromeStorageSync } from "../lib/storage";
   import { Prompt, CreateLLMSession } from "../lib/llm";
 
@@ -7,9 +8,12 @@
 
   const notesStore = chromeStorageSync<string[]>("notes");
   let notes: string[] = [];
+  let userQuestion: string = "";
+  let answerToUserQuestion: string = "";
+  let isGeneratingAnswerToUserQuestion = false;
   let quiz: QA[] = [];
   let isGeneratingQuiz = false;
-  let visibleAnswers: boolean[] = [];
+  let visibleQuizAnswers: boolean[] = [];
 
   onMount(() => {
     const unsubscribe = notesStore.subscribe((value) => {
@@ -26,6 +30,33 @@
       }
       return currentNotes;
     });
+  }
+
+  async function askQuestion(prompt: string) {
+    const systemPrompt =
+      'You answer questions based on notes given below. \
+      Do not add extra info not found in notes. \
+      NOTES: \
+    ' + "\n" + notes.join("\n");
+
+    answerToUserQuestion = "";
+    isGeneratingAnswerToUserQuestion = true; 
+
+    const llmSession = await CreateLLMSession(systemPrompt);
+
+    if (!llmSession) {
+      return;
+    }
+
+    try {
+      answerToUserQuestion = await Prompt(llmSession, prompt);
+    } catch (error) {
+      console.error("Error answering question:", error);
+      alert("Error answering question. Please try again");
+    } finally {
+      isGeneratingAnswerToUserQuestion = false;
+      llmSession.destroy();
+    }
   }
 
   async function generateQuiz() {
@@ -56,7 +87,7 @@
         question,
         answer: answers[index],
       }));
-      visibleAnswers = new Array(quiz.length).fill(false);
+      visibleQuizAnswers = new Array(quiz.length).fill(false);
     } catch (error) {
       console.error("Error generating quiz:", error);
       quiz = [
@@ -69,8 +100,14 @@
   }
 
   function toggleAnswer(index: number) {
-    visibleAnswers[index] = !visibleAnswers[index];
-    visibleAnswers = [...visibleAnswers];
+    visibleQuizAnswers[index] = !visibleQuizAnswers[index];
+    visibleQuizAnswers = [...visibleQuizAnswers];
+  }
+
+  async function handleAskQuestion() {
+    if (userQuestion.trim()) {
+      await askQuestion(userQuestion);
+    }
   }
 </script>
 
@@ -90,6 +127,24 @@
     {/if}
   </div>
 
+  <div id="ask-question">
+    <input
+      type="text"
+      bind:value={userQuestion}
+      on:keypress={(e) => e.key === "Enter" && handleAskQuestion()}
+      placeholder="Ask a question about your notes"
+    />
+    <button on:click={handleAskQuestion} disabled={!userQuestion.trim() || isGeneratingAnswerToUserQuestion}>
+      {isGeneratingAnswerToUserQuestion ? "Answering..." : "Ask"}
+    </button>
+  </div>
+
+  {#if answerToUserQuestion}
+    <div id="answer">
+      {@html marked(answerToUserQuestion)}
+    </div>
+  {/if}
+
   <button
     on:click={generateQuiz}
     disabled={isGeneratingQuiz || notes.length === 0}
@@ -104,7 +159,7 @@
         {#each quiz as q, index}
           <li>
             <button on:click={() => toggleAnswer(index)}>{q.question}</button>
-            {#if visibleAnswers[index]}
+            {#if visibleQuizAnswers[index]}
               <p class="answer">{q.answer}</p>
             {/if}
           </li>
@@ -202,4 +257,30 @@
     border-radius: 5px;
     border-left: 4px solid #4caf50;
   }
+
+  #ask-question {
+    display: flex;
+    margin-top: 15px;
+  }
+
+  #ask-question input {
+    flex-grow: 1;
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 5px 0 0 5px;
+  }
+
+  #ask-question button {
+    border-radius: 0 5px 5px 0;
+    margin-top: 0;
+  }
+
+  #answer {
+    margin-top: 20px;
+    padding: 15px;
+    background-color: #e8f5e9;
+    border-radius: 5px;
+    border-left: 4px solid #4caf50;
+  }
+
 </style>
