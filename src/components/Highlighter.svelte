@@ -1,12 +1,32 @@
 <script lang="ts">
     import { chromeStorageSync } from "../lib/storage";
+    import type { NoteGroup } from "../lib/notes";
+    import { onMount } from "svelte";
+    // Update store to use NoteGroup array
+    const notesStore = chromeStorageSync<NoteGroup[]>("notes");
+    const activeTabStore = chromeStorageSync<string>("activeTab");
 
-    const notesStore = chromeStorageSync<string[]>("notes");
-
+    let noteGroups: NoteGroup[] = [];
+    let activeTab = "General";
     let popup: HTMLElement | null = null;
     let selectedText = "";
     let popupX = 0;
     let popupY = 0;
+
+    onMount(() => {
+        const unsubscribeNotes = notesStore.subscribe((value) => {
+            noteGroups = value || [{ tab: "General", notes: [] }];
+        });
+
+        const unsubscribeTab = activeTabStore.subscribe((value) => {
+            activeTab = value || "General";
+        });
+
+        return () => {
+            unsubscribeNotes();
+            unsubscribeTab();
+        };
+    });
 
     function handleDocumentClick(event: MouseEvent) {
         selectedText = window.getSelection()?.toString().trim() || "";
@@ -28,11 +48,23 @@
 
     function saveHighlight() {
         console.log("saveHighlight: ", selectedText);
-        notesStore.update((notes) => {
-            const updatedNotes = notes || [];
-            updatedNotes.push(selectedText);
+        notesStore.update((noteGroups) => {
+            const groups = noteGroups || [];
+            const activeGroup = groups.find((g) => g.tab === activeTab);
+
+            if (activeGroup) {
+                activeGroup.notes.push(selectedText);
+            } else {
+                groups.push({
+                    tab: activeTab,
+                    notes: [selectedText],
+                });
+            }
+
+            activeTabStore.set(activeTab);
+
             selectedText = ""; // clears the popup
-            return updatedNotes;
+            return groups;
         });
     }
 
@@ -52,6 +84,16 @@
         class="highlight-popup"
         style="left: {popupX}px; top: {popupY}px;"
     >
+        <select bind:value={activeTab}>
+            {#each noteGroups as group}
+                <option value={group.tab}>{group.tab}</option>
+            {/each}
+            {#if noteGroups.length === 1 && noteGroups[0].tab === "General"}
+                <option value="Important">Important</option>
+                <option value="Todo">Todo</option>
+                <option value="Research">Research</option>
+            {/if}
+        </select>
         <button on:click={saveHighlightClick}>Save as Amphy note</button>
         <span class="click-instruction">Ctrl + Shift + A</span>
     </div>
@@ -99,5 +141,13 @@
         font-size: 12px;
         margin-left: 4px;
         margin-right: 4px;
+    }
+
+    select {
+        padding: 4px 8px;
+        margin-right: 8px;
+        border-radius: 6px;
+        border: 1px solid #ddd;
+        font-size: 14px;
     }
 </style>

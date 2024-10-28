@@ -3,44 +3,64 @@
   import { marked } from "marked";
   import { chromeStorageSync } from "../lib/storage";
   import { Prompt, CreateLLMSession } from "../lib/llm";
+  import TabBar from "./TabBar.svelte";
 
-  type QA = { question: string; answer: string };
+  interface NoteGroup {
+    tab: string;
+    notes: string[];
+  }
 
-  const notesStore = chromeStorageSync<string[]>("notes");
-  let notes: string[] = [];
+  const notesStore = chromeStorageSync<NoteGroup[]>("notes");
+  const activeTabStore = chromeStorageSync<string>("activeTab");
+
+  let noteGroups: NoteGroup[] = [];
+  let activeTab = "General";
+
   let userQuestion: string = "";
   let answerToUserQuestion: string = "";
   let isGeneratingAnswerToUserQuestion = false;
-  let quiz: QA[] = [];
+  let quiz: { question: string; answer: string }[] = [];
   let isGeneratingQuiz = false;
   let visibleQuizAnswers: boolean[] = [];
 
   onMount(() => {
-    const unsubscribe = notesStore.subscribe((value) => {
-      notes = value || [];
+    const unsubscribeNotes = notesStore.subscribe((value) => {
+      noteGroups = value || [{ tab: "General", notes: [] }];
     });
 
-    return unsubscribe;
+    const unsubscribeTab = activeTabStore.subscribe((value) => {
+      activeTab = value || "General";
+    });
+
+    return () => {
+      unsubscribeNotes();
+      unsubscribeTab();
+    };
   });
 
   function deleteNote(index: number) {
-    notesStore.update((currentNotes) => {
-      if (currentNotes && currentNotes.length > index) {
-        currentNotes.splice(index, 1);
+    notesStore.update((groups) => {
+      const activeGroup = groups.find((g) => g.tab === activeTab);
+      if (activeGroup && activeGroup.notes.length > index) {
+        activeGroup.notes.splice(index, 1);
       }
-      return currentNotes;
+      return groups;
     });
   }
 
   async function askQuestion(prompt: string) {
+    const activeNotes =
+      noteGroups.find((g) => g.tab === activeTab)?.notes || [];
     const systemPrompt =
-      'You answer questions based on notes given below. \
+      "You answer questions based on notes given below. \
       Do not add extra info not found in notes. \
       NOTES: \
-    ' + "\n" + notes.join("\n");
+    " +
+      "\n" +
+      activeNotes.join("\n");
 
     answerToUserQuestion = "";
-    isGeneratingAnswerToUserQuestion = true; 
+    isGeneratingAnswerToUserQuestion = true;
 
     const llmSession = await CreateLLMSession(systemPrompt);
 
@@ -76,7 +96,9 @@
       return;
     }
 
-    const prompt = notes.join("\n");
+    const activeNotes =
+      noteGroups.find((g) => g.tab === activeTab)?.notes || [];
+    const prompt = activeNotes.join("\n");
 
     try {
       const response = await Prompt(llmSession, prompt);
@@ -112,9 +134,11 @@
 </script>
 
 <main>
+  <TabBar {noteGroups} {activeTab} />
+
   <div id="notes">
-    {#if notes.length > 0}
-      {#each notes as note, index}
+    {#if noteGroups.find((g) => g.tab === activeTab)?.notes.length}
+      {#each noteGroups.find((g) => g.tab === activeTab)?.notes || [] as note, index}
         <div class="note-item">
           <span class="note-text">{note}</span>
           <button class="delete-button" on:click={() => deleteNote(index)}
@@ -123,18 +147,22 @@
         </div>
       {/each}
     {:else}
-      <p id="no-notes">No notes yet</p>
+      <p id="no-notes">No notes in this tab yet</p>
     {/if}
   </div>
 
   <div id="ask-question">
     <input
+      class="user-question-input"
       type="text"
       bind:value={userQuestion}
       on:keypress={(e) => e.key === "Enter" && handleAskQuestion()}
       placeholder="Ask a question about your notes"
     />
-    <button on:click={handleAskQuestion} disabled={!userQuestion.trim() || isGeneratingAnswerToUserQuestion}>
+    <button
+      on:click={handleAskQuestion}
+      disabled={!userQuestion.trim() || isGeneratingAnswerToUserQuestion}
+    >
       {isGeneratingAnswerToUserQuestion ? "Answering..." : "Ask"}
     </button>
   </div>
@@ -147,7 +175,8 @@
 
   <button
     on:click={generateQuiz}
-    disabled={isGeneratingQuiz || notes.length === 0}
+    disabled={isGeneratingQuiz ||
+      noteGroups.find((g) => g.tab === activeTab)?.notes.length === 0}
   >
     {isGeneratingQuiz ? "Generating Quiz..." : "Generate Quiz"}
   </button>
@@ -257,30 +286,4 @@
     border-radius: 5px;
     border-left: 4px solid #4caf50;
   }
-
-  #ask-question {
-    display: flex;
-    margin-top: 15px;
-  }
-
-  #ask-question input {
-    flex-grow: 1;
-    padding: 10px;
-    border: 1px solid #ddd;
-    border-radius: 5px 0 0 5px;
-  }
-
-  #ask-question button {
-    border-radius: 0 5px 5px 0;
-    margin-top: 0;
-  }
-
-  #answer {
-    margin-top: 20px;
-    padding: 15px;
-    background-color: #e8f5e9;
-    border-radius: 5px;
-    border-left: 4px solid #4caf50;
-  }
-
 </style>
