@@ -1,4 +1,5 @@
 <script lang="ts">
+  import autosize from "svelte-autosize";
   import { onMount } from "svelte";
   import { marked } from "marked";
   import { chromeStorageSync } from "../lib/storage";
@@ -15,7 +16,6 @@
 
   let noteGroups: NoteGroup[] = [];
   let activeTab = "General";
-
   let userQuestion: string = "";
   let answerToUserQuestion: string = "";
   let isGeneratingAnswerToUserQuestion = false;
@@ -37,6 +37,30 @@
       unsubscribeTab();
     };
   });
+
+  function updateNote(noteIndex: number, value: string) {
+    notesStore.update((groups) => {
+      const activeGroup = groups.find((g) => g.tab === activeTab);
+      if (activeGroup) {
+        activeGroup.notes[noteIndex] = value;
+      } else {
+        groups.push({ tab: activeTab, notes: [value] });
+      }
+      return groups;
+    });
+  }
+
+  function createNote(value: string) {
+    notesStore.update((groups) => {
+      const activeGroup = groups.find((g) => g.tab === activeTab);
+      if (activeGroup) {
+        activeGroup.notes.push(value);
+      } else {
+        groups.push({ tab: activeTab, notes: [value] });
+      }
+      return groups;
+    });
+  }
 
   function deleteNote(index: number) {
     notesStore.update((groups) => {
@@ -140,15 +164,33 @@
     {#if noteGroups.find((g) => g.tab === activeTab)?.notes.length}
       {#each noteGroups.find((g) => g.tab === activeTab)?.notes || [] as note, index}
         <div class="note-item">
-          <span class="note-text">{note}</span>
-          <button class="delete-button" on:click={() => deleteNote(index)}
-            >Delete</button
+          <textarea
+            use:autosize
+            bind:value={note}
+            on:change={() => updateNote(index, note)}
+            class="note-text"
           >
+          </textarea>
+          <button class="delete-button" on:click={() => deleteNote(index)}>
+            ×
+          </button>
         </div>
       {/each}
     {:else}
       <p id="no-notes">No notes in this tab yet</p>
     {/if}
+    <div class="note-item">
+      <textarea
+        use:autosize
+        on:change={(e:Event) => {
+          const target = e.target as HTMLTextAreaElement;
+          createNote(target.value);
+          target.value = ""; // Clear the textarea for the next new note
+        }}
+        class="note-text"
+        placeholder="Add a new note"
+      ></textarea>
+    </div>
   </div>
 
   <div id="ask-question">
@@ -212,6 +254,17 @@
   .note-text {
     flex-grow: 1;
     margin-right: 10px;
+    padding: 8px;
+    border: none;
+    resize: none;
+    min-height: 40px;
+    font-family: inherit;
+    overflow: hidden;
+  }
+  .note-text:focus {
+    outline: none;
+    border: solid;
+    border-color: #3498db;
   }
   .delete-button {
     background-color: #e74c3c;
