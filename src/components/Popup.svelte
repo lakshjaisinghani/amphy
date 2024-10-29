@@ -38,6 +38,10 @@
     };
   });
 
+  function isNoteGroupEmpty(tab: string) {
+    return noteGroups.find((g) => g.tab === tab)?.notes.length === 0;
+  }
+
   function updateNote(noteIndex: number, value: string) {
     notesStore.update((groups) => {
       const activeGroup = groups.find((g) => g.tab === activeTab);
@@ -160,8 +164,8 @@
 <main>
   <TabBar {noteGroups} {activeTab} />
 
-  <div id="notes">
-    {#if noteGroups.find((g) => g.tab === activeTab)?.notes.length}
+  <div id="notes" class="section">
+    {#if !isNoteGroupEmpty(activeTab)}
       {#each noteGroups.find((g) => g.tab === activeTab)?.notes || [] as note, index}
         <div class="note-item">
           <textarea
@@ -193,28 +197,32 @@
     </div>
   </div>
 
-  <div id="ask-question">
-    <input
-      class="user-question-input"
-      type="text"
-      bind:value={userQuestion}
-      on:keypress={(e) => e.key === "Enter" && handleAskQuestion()}
-      placeholder="Ask a question about your notes"
-    />
-    <button
-      on:click={handleAskQuestion}
-      disabled={!userQuestion.trim() || isGeneratingAnswerToUserQuestion}
-    >
-      {isGeneratingAnswerToUserQuestion ? "Answering..." : "Ask"}
-    </button>
-  </div>
-
-  {#if answerToUserQuestion}
-    <div id="answer">
-      {@html marked(answerToUserQuestion)}
+  {#if !isNoteGroupEmpty(activeTab)}
+  <div class="section">
+    <div id="ask-question-section">
+      <input
+        class="user-question-input"
+        type="text"
+        bind:value={userQuestion}
+        on:keypress={(e) => e.key === "Enter" && handleAskQuestion()}
+        placeholder="Ask a question about your notes"
+      />
+      <button
+        on:click={handleAskQuestion}
+        disabled={!userQuestion.trim() || isGeneratingAnswerToUserQuestion}
+      >
+        {isGeneratingAnswerToUserQuestion ? "Answering..." : "Ask"}
+      </button>
     </div>
-  {/if}
 
+    {#if answerToUserQuestion}
+      <div id="answer">
+        {@html marked(answerToUserQuestion)}
+      </div>
+    {/if}
+  </div>
+  
+  <div id="quiz-section" class="section">
   <button
     on:click={generateQuiz}
     disabled={isGeneratingQuiz ||
@@ -237,6 +245,8 @@
         {/each}
       </ol>
     </div>
+  {/if}
+  </div>
   {/if}
 </main>
 
@@ -278,6 +288,17 @@
   .delete-button:hover {
     background-color: #c0392b;
   }
+  .user-question-input {
+    flex-grow: 1;
+    padding: 8px;
+    border: none;
+    border-radius: 5px;
+    font-family: inherit;
+    font-size: 1em;
+  }
+  .section {
+    margin-top: 20px;
+  }
 
   button {
     background-color: #3498db;
@@ -287,7 +308,6 @@
     border-radius: 5px;
     cursor: pointer;
     transition: background-color 0.3s;
-    margin-top: 15px;
   }
 
   button:hover {
@@ -297,6 +317,10 @@
   button:disabled {
     background-color: #bdc3c7;
     cursor: not-allowed;
+  }
+
+  #quiz-section {
+    margin-top: 20px;
   }
 
   #quiz {
@@ -330,6 +354,14 @@
 
   #quiz button:hover {
     background-color: #e0e0e0;
+  }
+
+  #ask-question-section {
+    margin-top: 20px;
+    display: flex;
+    flex-direction: row;
+    gap: 10px;
+    justify-content: space-around;
   }
 
   .answer {
