@@ -35,7 +35,7 @@
             selectedText = "";
         }
 
-        if (selectedText.length > 0) {
+        if (selectedText.length > 0 && !popup) {
             popupX = event.pageX;
             popupY = event.pageY + 20;
         }
@@ -147,7 +147,9 @@
         padding: 4px 8px;
         margin-right: 8px;
         border-radius: 6px;
-        border: 1px solid #ddd;
+        border: 1px solid #ddddddc4;
         font-size: 14px;
+        background-color: white;
+        color: black;
     }
 </style>
