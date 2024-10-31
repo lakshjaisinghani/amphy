@@ -1,15 +1,42 @@
+import { GenerativeModel, GoogleGenerativeAI } from '@google/generative-ai';
 import type { AISettings } from './types';
 
-const MAX_PROMPT_TOKENS = 1024;
+const MAX_LOCAL_LLM_PROMPT_TOKENS = 1024;
+const GEMINI_MODEL = "gemini-1.5-flash";
 
-export async function Prompt(llmSession: AILanguageModel, prompt: string): Promise<string> {
+export type LLM = AILanguageModel | GenerativeModel;
+
+export async function Prompt(llmSession: LLM, prompt: string): Promise<string> {
+    if (llmSession instanceof GenerativeModel) { // Web AI: Gemini
+        return PromptGemini(llmSession, prompt);
+    }
+
+    // Local AI
+    return PromptLocalAI(llmSession, prompt);
+
+}
+
+async function PromptGemini(llmSession: GenerativeModel, prompt: string): Promise<string> {
+    const tokenCount = await llmSession.countTokens(prompt);
+    console.log("Gemini Token count: ", tokenCount);
+    return (await llmSession.generateContent(prompt)).response.text();
+}
+
+async function PromptLocalAI(llmSession: AILanguageModel, prompt: string): Promise<string> {
     const promptTokens = await llmSession.countPromptTokens(prompt);
-    if (promptTokens > MAX_PROMPT_TOKENS) {
+    if (promptTokens > MAX_LOCAL_LLM_PROMPT_TOKENS) {
         console.error("Prompt too long");
         return prompt;
     }
 
-    return await llmSession.prompt(prompt);
+    try {
+        const response = await llmSession.prompt(prompt);
+        return response;
+    } catch (error) {
+        throw new Error("Local AI error: " + error);
+    } finally {
+        llmSession.destroy();
+    }
 }
 
 export async function CreateLLMSession(
@@ -21,8 +48,7 @@ export async function CreateLLMSession(
             alert("Please set your Gemini API key in the options page");
             return null;
         }
-        console.log("TODO: use Gemini API");
-        return null;
+        return createGeminiSession(aiSettings.geminiApiKey, systemPrompt);
     }
 
     if (!(await isLocalAiAvailable())) {
@@ -35,6 +61,14 @@ export async function CreateLLMSession(
     });
 
     return llmSession;
+}
+
+async function createGeminiSession(apiKey: string, systemPrompt: string): Promise<GenerativeModel> {
+    const genAI = new GoogleGenerativeAI(apiKey);
+    return await genAI.getGenerativeModel({
+        model: GEMINI_MODEL,
+        systemInstruction: systemPrompt
+    });
 }
 
 async function isLocalAiAvailable(): Promise<boolean> {

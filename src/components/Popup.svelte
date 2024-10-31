@@ -107,17 +107,21 @@
       alert("Error answering question. Please try again");
     } finally {
       isGeneratingAnswerToUserQuestion = false;
-      llmSession.destroy();
     }
   }
 
   async function generateQuiz() {
+    // Local LLM has error of unsupported language when trying to output JSON with curly braces.
+    // So we just use a makeshift output format. The labels "questions" and "answers" are important
+    // for the dumb LLM to not get confused.
     const systemPrompt =
       'You are a function that generate quiz questions \
-      and answers as separate arrays based on notes. \
+      and answers based on notes. \
       Do not use codeblock. \
-      Format: \
-      ["q1", "q2", "q3"]\n["a1", "a2", "a3"] \
+      Example: \
+      questions:["q1", "q2", \
+      "q3"...], answers:["a1", "a2",\
+       "a3"...] \
     ';
 
     isGeneratingQuiz = true;
@@ -135,9 +139,25 @@
 
     try {
       const response = await Prompt(llmSession, prompt);
-      const rawQuiz = response.split("\n");
+      console.log("Raw response:", response);
+      const rawQuiz = response.split(", answers:");
+      
+      // Make sure they can be parsed as JSON arrays by starting and ending with square brackets
+      rawQuiz[0] = "[" + rawQuiz[0].split("[")[1];
+      rawQuiz[1] = rawQuiz[1].split("]")[0] + "]";
+      
+      // Remove trailing ellipsis if any - this might be a remnant of the system prompt
+      rawQuiz[0] = rawQuiz[0].replace(new RegExp("/\.\.\.$"), ""); 
+      rawQuiz[1] = rawQuiz[1].replace(new RegExp("/\.\.\.$"), "");
+      
+
+      console.log("Raw quiz:", rawQuiz);
+      console.log("Raw Questions:", rawQuiz[0]);
+      console.log("Raw Answers:", rawQuiz[1]);
       const questions = JSON.parse(rawQuiz[0]) as string[];
+      console.log("Questions:", questions);
       const answers = JSON.parse(rawQuiz[1]) as string[];
+      console.log("Answers:", answers);
       quiz = questions.map((question, index) => ({
         question,
         answer: answers[index],
@@ -150,7 +170,6 @@
       ];
     } finally {
       isGeneratingQuiz = false;
-      llmSession.destroy();
     }
   }
 
