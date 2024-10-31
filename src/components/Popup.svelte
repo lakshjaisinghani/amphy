@@ -401,8 +401,8 @@
     background: none;
     border: none;
     font-size: 1.2em;
-    padding: 5px;
-    margin-bottom: 20px;
+    padding: 0px;
+    margin-bottom: 15px;
     cursor: pointer;
     transition: transform 0.2s;
   }
