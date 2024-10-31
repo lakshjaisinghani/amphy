@@ -1,7 +1,9 @@
-const MAX_PROMPT_TOKENS = 1024
+import type { AISettings } from './types';
+
+const MAX_PROMPT_TOKENS = 1024;
 
 export async function Prompt(llmSession: AILanguageModel, prompt: string): Promise<string> {
-    const promptTokens = await llmSession.countPromptTokens(prompt)
+    const promptTokens = await llmSession.countPromptTokens(prompt);
     if (promptTokens > MAX_PROMPT_TOKENS) {
         console.error("Prompt too long");
         return prompt;
@@ -11,10 +13,20 @@ export async function Prompt(llmSession: AILanguageModel, prompt: string): Promi
 }
 
 export async function CreateLLMSession(
-    systemPrompt: string
+    systemPrompt: string,
+    aiSettings: AISettings
 ) {
+    if (aiSettings.useWebAI) {
+        if (!aiSettings.geminiApiKey) {
+            alert("Please set your Gemini API key in the options page");
+            return null;
+        }
+        console.log("TODO: use Gemini API");
+        return null;
+    }
+
     if (!(await isLocalAiAvailable())) {
-        console.log("TODO: use online LLM service");
+        console.warn("Local AI is not available, enable WebAI in the options page instead");
         return null;
     }
 

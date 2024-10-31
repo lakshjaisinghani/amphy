@@ -1,6 +1,6 @@
 <script lang="ts">
     import { chromeStorageSync } from "../lib/storage";
-    import type { NoteGroup } from "../lib/notes";
+    import type { NoteGroup } from "../lib/types";
     import { onMount } from "svelte";
     // Update store to use NoteGroup array
     const notesStore = chromeStorageSync<NoteGroup[]>("notes");

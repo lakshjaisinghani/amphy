@@ -5,14 +5,11 @@
   import { chromeStorageSync } from "../lib/storage";
   import { Prompt, CreateLLMSession } from "../lib/llm";
   import TabBar from "./TabBar.svelte";
-
-  interface NoteGroup {
-    tab: string;
-    notes: string[];
-  }
+  import type { AISettings, NoteGroup } from "../lib/types";
 
   const notesStore = chromeStorageSync<NoteGroup[]>("notes");
   const activeTabStore = chromeStorageSync<string>("activeTab");
+  const aiSettingsStore = chromeStorageSync<AISettings>("aiSettings");
 
   let noteGroups: NoteGroup[] = [];
   let activeTab = "General";
@@ -22,6 +19,7 @@
   let quiz: { question: string; answer: string }[] = [];
   let isGeneratingQuiz = false;
   let visibleQuizAnswers: boolean[] = [];
+  let aiSettings: AISettings = { useWebAI: true, geminiApiKey: "" };
 
   onMount(() => {
     const unsubscribeNotes = notesStore.subscribe((value) => {
@@ -32,9 +30,14 @@
       activeTab = value || "General";
     });
 
+    const unsubscribeAISettings = aiSettingsStore.subscribe((value) => {
+      aiSettings = value || { useWebAI: true, geminiApiKey: "" };
+    });
+
     return () => {
       unsubscribeNotes();
       unsubscribeTab();
+      unsubscribeAISettings();
     };
   });
 
@@ -90,9 +93,10 @@
     answerToUserQuestion = "";
     isGeneratingAnswerToUserQuestion = true;
 
-    const llmSession = await CreateLLMSession(systemPrompt);
+    const llmSession = await CreateLLMSession(systemPrompt, aiSettings);
 
     if (!llmSession) {
+      isGeneratingAnswerToUserQuestion = false;
       return;
     }
 
@@ -118,9 +122,10 @@
 
     isGeneratingQuiz = true;
 
-    const llmSession = await CreateLLMSession(systemPrompt);
+    const llmSession = await CreateLLMSession(systemPrompt, aiSettings);
 
     if (!llmSession) {
+      isGeneratingQuiz = false;
       return;
     }
 
@@ -162,7 +167,15 @@
 </script>
 
 <main>
-  <TabBar {noteGroups} {activeTab} />
+  <div class="header">
+    <TabBar {noteGroups} {activeTab} />
+    <button 
+      class="options-button" 
+      on:click={() => chrome.runtime.openOptionsPage()}
+    >
+      ⚙️
+    </button>
+  </div>
 
   <div id="notes" class="section">
     {#if !isNoteGroupEmpty(activeTab)}
@@ -370,5 +383,27 @@
     background-color: #e8f5e9;
     border-radius: 5px;
     border-left: 4px solid #4caf50;
+  }
+
+  .header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0px;
+  }
+
+  .options-button {
+    background: none;
+    border: none;
+    font-size: 1.2em;
+    padding: 5px;
+    margin-bottom: 20px;
+    cursor: pointer;
+    transition: transform 0.2s;
+  }
+
+  .options-button:hover {
+    transform: rotate(45deg);
+    background: none;
   }
 </style>

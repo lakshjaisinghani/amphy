@@ -31,5 +31,8 @@ export default defineManifest(async (env) => ({
             "128": "src/assets/icons/icon-128.png",
         },
     },
+    options_ui: {
+        page: "src/options/options.html",
+    },
     permissions: ["storage", "activeTab"] as chrome.runtime.ManifestPermissions[],
 }));
