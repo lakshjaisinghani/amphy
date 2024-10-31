@@ -3,7 +3,7 @@
   import { onMount } from "svelte";
   import { marked } from "marked";
   import { chromeStorageSync } from "../lib/storage";
-  import { Prompt, CreateLLMSession } from "../lib/llm";
+  import { LLMManager } from "../lib/llm";
   import TabBar from "./TabBar.svelte";
   import type { AISettings, NoteGroup } from "../lib/types";
 
@@ -20,6 +20,7 @@
   let isGeneratingQuiz = false;
   let visibleQuizAnswers: boolean[] = [];
   let aiSettings: AISettings = { useWebAI: true, geminiApiKey: "" };
+  let llmManager: LLMManager | null = null;
 
   onMount(() => {
     const unsubscribeNotes = notesStore.subscribe((value) => {
@@ -80,28 +81,22 @@
   }
 
   async function askQuestion(prompt: string) {
-    const activeNotes =
-      noteGroups.find((g) => g.tab === activeTab)?.notes || [];
-    const systemPrompt =
+    const activeNotes = noteGroups.find((g) => g.tab === activeTab)?.notes || [];
+    const systemPrompt = 
       "You answer questions based on notes given below. \
       Do not add extra info not found in notes. \
       NOTES: \
-    " +
-      "\n" +
-      activeNotes.join("\n");
+    " + "\n" + activeNotes.join("\n");
 
     answerToUserQuestion = "";
     isGeneratingAnswerToUserQuestion = true;
 
-    const llmSession = await CreateLLMSession(systemPrompt, aiSettings);
-
-    if (!llmSession) {
-      isGeneratingAnswerToUserQuestion = false;
-      return;
-    }
-
     try {
-      answerToUserQuestion = await Prompt(llmSession, prompt);
+      llmManager = new LLMManager(aiSettings, systemPrompt);
+      if (!await llmManager.initialize()) {
+        throw new Error("Failed to initialize LLM");
+      }
+      answerToUserQuestion = await llmManager.prompt(prompt);
     } catch (error) {
       console.error("Error answering question:", error);
       alert("Error answering question. Please try again");
@@ -126,38 +121,29 @@
 
     isGeneratingQuiz = true;
 
-    const llmSession = await CreateLLMSession(systemPrompt, aiSettings);
-
-    if (!llmSession) {
-      isGeneratingQuiz = false;
-      return;
-    }
-
-    const activeNotes =
-      noteGroups.find((g) => g.tab === activeTab)?.notes || [];
-    const prompt = activeNotes.join("\n");
-
     try {
-      const response = await Prompt(llmSession, prompt);
-      console.log("Raw response:", response);
-      const rawQuiz = response.split(", answers:");
+      llmManager = new LLMManager(aiSettings, systemPrompt);
+      if (!await llmManager.initialize()) {
+        throw new Error("Failed to initialize LLM");
+      }
+
+      const activeNotes = noteGroups.find((g) => g.tab === activeTab)?.notes || [];
+      const prompt = activeNotes.join("\n");
+      const response = await llmManager.prompt(prompt);
+      
+      const rawQuiz = response.split("answers:");
       
       // Make sure they can be parsed as JSON arrays by starting and ending with square brackets
-      rawQuiz[0] = "[" + rawQuiz[0].split("[")[1];
-      rawQuiz[1] = rawQuiz[1].split("]")[0] + "]";
+      rawQuiz[0] = "[" + rawQuiz[0].split("[")[1].split("]")[0] + "]";
+      rawQuiz[1] = "[" + rawQuiz[1].split("[")[1].split("]")[0] + "]";
       
       // Remove trailing ellipsis if any - this might be a remnant of the system prompt
       rawQuiz[0] = rawQuiz[0].replace(new RegExp("/\.\.\.$"), ""); 
       rawQuiz[1] = rawQuiz[1].replace(new RegExp("/\.\.\.$"), "");
       
-
-      console.log("Raw quiz:", rawQuiz);
-      console.log("Raw Questions:", rawQuiz[0]);
-      console.log("Raw Answers:", rawQuiz[1]);
       const questions = JSON.parse(rawQuiz[0]) as string[];
-      console.log("Questions:", questions);
       const answers = JSON.parse(rawQuiz[1]) as string[];
-      console.log("Answers:", answers);
+      
       quiz = questions.map((question, index) => ({
         question,
         answer: answers[index],
@@ -166,7 +152,7 @@
     } catch (error) {
       console.error("Error generating quiz:", error);
       quiz = [
-        { question: "Error generating quiz", answer: "Please try again" },
+        { question: "Error generating quiz -> " + error, answer: "Please try again" },
       ];
     } finally {
       isGeneratingQuiz = false;
