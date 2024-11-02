@@ -1,6 +1,5 @@
 <script lang="ts">
   import autosize from "svelte-autosize";
-  import { onMount } from "svelte";
   import { marked } from "marked";
   import { chromeStorageSync } from "../lib/storage";
   import { LLMManager } from "../lib/llm";
@@ -11,35 +10,29 @@
   const activeTabStore = chromeStorageSync<string>("activeTab");
   const aiSettingsStore = chromeStorageSync<AISettings>("aiSettings");
 
-  let noteGroups: NoteGroup[] = [];
-  let activeTab = "General";
-  let userQuestion: string = "";
-  let answerToUserQuestion: string = "";
-  let isGeneratingAnswerToUserQuestion = false;
-  let quiz: { question: string; answer: string }[] = [];
-  let isGeneratingQuiz = false;
-  let visibleQuizAnswers: boolean[] = [];
+  let noteGroups: NoteGroup[] = $state([]);
+  let activeTab = $state("General");
+  let userQuestion: string = $state("");
+  let answerToUserQuestion: string = $state("");
+  let isGeneratingAnswerToUserQuestion = $state(false);
+  let quiz: { question: string; answer: string }[] = $state([]);
+  let isGeneratingQuiz = $state(false);
+  let visibleQuizAnswers: boolean[] = $state([]);
   let aiSettings: AISettings = { useWebAI: true, geminiApiKey: "" };
   let llmManager: LLMManager | null = null;
 
-  onMount(() => {
-    const unsubscribeNotes = notesStore.subscribe((value) => {
-      noteGroups = value || [{ tab: "General", notes: [] }];
-    });
+  let activeNoteGroup = $derived($notesStore?.find((g) => g.tab === activeTab))
 
-    const unsubscribeTab = activeTabStore.subscribe((value) => {
-      activeTab = value || "General";
-    });
+  notesStore.subscribe((value) => {
+    noteGroups = value || [{ tab: "General", notes: [] }];
+  });
 
-    const unsubscribeAISettings = aiSettingsStore.subscribe((value) => {
-      aiSettings = value || { useWebAI: true, geminiApiKey: "" };
-    });
+  activeTabStore.subscribe((value) => {
+    activeTab = value || "General";
+  });
 
-    return () => {
-      unsubscribeNotes();
-      unsubscribeTab();
-      unsubscribeAISettings();
-    };
+  aiSettingsStore.subscribe((value) => {
+    aiSettings = value || { useWebAI: true, geminiApiKey: "" };
   });
 
   function isNoteGroupEmpty(tab: string) {
@@ -72,7 +65,7 @@
 
   function deleteNote(index: number) {
     notesStore.update((groups) => {
-      const activeGroup = groups.find((g) => g.tab === activeTab);
+const activeGroup = groups.find((g) => g.tab === activeTab);
       if (activeGroup && activeGroup.notes.length > index) {
         activeGroup.notes.splice(index, 1);
       }
@@ -81,7 +74,7 @@
   }
 
   async function askQuestion(prompt: string) {
-    const activeNotes = noteGroups.find((g) => g.tab === activeTab)?.notes || [];
+    const activeNotes = activeNoteGroup?.notes || [];
     const systemPrompt = 
       "You answer questions based on notes given below. \
       Do not add extra info not found in notes. \
@@ -127,7 +120,7 @@
         throw new Error("Failed to initialize LLM");
       }
 
-      const activeNotes = noteGroups.find((g) => g.tab === activeTab)?.notes || [];
+      const activeNotes = activeNoteGroup?.notes || [];
       const prompt = activeNotes.join("\n");
       const response = await llmManager.prompt(prompt);
       
@@ -176,7 +169,7 @@
     <TabBar {noteGroups} {activeTab} />
     <button 
       class="options-button" 
-      on:click={() => chrome.runtime.openOptionsPage()}
+      onclick={() => chrome.runtime.openOptionsPage()}
     >
       ⚙️
     </button>
@@ -188,12 +181,12 @@
         <div class="note-item">
           <textarea
             use:autosize
-            bind:value={note}
-            on:change={() => updateNote(index, note)}
-            class="note-text"
-          >
-          </textarea>
-          <button class="delete-button" on:click={() => deleteNote(index)}>
+            onchange={(e:Event) => {
+              const target = e.target as HTMLTextAreaElement;
+              updateNote(index, target.value)}}
+            class="note-text">{note}</textarea>
+
+          <button class="delete-button" onclick={() => deleteNote(index)}>
             ×
           </button>
         </div>
@@ -204,7 +197,7 @@
     <div class="note-item">
       <textarea
         use:autosize
-        on:change={(e:Event) => {
+        onchange={(e:Event) => {
           const target = e.target as HTMLTextAreaElement;
           createNote(target.value);
           target.value = ""; // Clear the textarea for the next new note
@@ -222,11 +215,11 @@
         class="user-question-input"
         type="text"
         bind:value={userQuestion}
-        on:keypress={(e) => e.key === "Enter" && handleAskQuestion()}
+        onkeypress={(e) => e.key === "Enter" && handleAskQuestion()}
         placeholder="Ask a question about your notes"
       />
       <button
-        on:click={handleAskQuestion}
+        onclick={handleAskQuestion}
         disabled={!userQuestion.trim() || isGeneratingAnswerToUserQuestion}
       >
         {isGeneratingAnswerToUserQuestion ? "Answering..." : "Ask"}
@@ -242,9 +235,9 @@
   
   <div id="quiz-section" class="section">
   <button
-    on:click={generateQuiz}
+    onclick={generateQuiz}
     disabled={isGeneratingQuiz ||
-      noteGroups.find((g) => g.tab === activeTab)?.notes.length === 0}
+      activeNoteGroup?.notes.length === 0}
   >
     {isGeneratingQuiz ? "Generating Quiz..." : "Generate Quiz"}
   </button>
@@ -255,7 +248,7 @@
       <ol>
         {#each quiz as q, index}
           <li>
-            <button on:click={() => toggleAnswer(index)}>{q.question}</button>
+            <button onclick={() => toggleAnswer(index)}>{q.question}</button>
             {#if visibleQuizAnswers[index]}
               <p class="answer">{q.answer}</p>
             {/if}

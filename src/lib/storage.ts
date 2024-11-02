@@ -1,6 +1,6 @@
-// Copied from https://github.com/shaun-wild/svelte-chrome-storage
+// Modified from https://github.com/shaun-wild/svelte-chrome-storage
 
-import type { Subscriber, Unsubscriber, Updater, Writable } from "svelte/store";
+import type { Subscriber, Unsubscriber, Updater, Writable, Readable } from "svelte/store";
 
 type StorageArea = chrome.storage.StorageArea;
 
@@ -31,39 +31,32 @@ chrome.storage.onChanged.addListener((changes, area) => {
 /**
  * Creates a new {@link ChromeStorageStoreAdapter} for a given key.
  * Data will be published to/read from chrome.storage.local.
- * This is a {@link Writable} instance, and can be used in place of
- * svelte stores.
  * @param key The key to store in the `local` chrome storage area.
  * @throws If the `storage` permission is not present in your manifest.
  * */
-export function chromeStorageLocal<T>(key: string): ChromeStorageStoreAdapter<T> {
+export function chromeStorageLocal<T>(key: string): Writable<T> {
     return new ChromeStorageStoreAdapter('local', key)
 }
 
 /**
  * Creates a new {@link ChromeStorageStoreAdapter} for a given key.
  * Data will be published to/read from chrome.storage.sync.
- * This is a {@link Writable} instance, and can be used in place of
- * svelte stores.
  * @param key The key to store in the `sync` chrome storage area.
  * @throws If the `storage` permission is not present in your manifest.
  * */
-export function chromeStorageSync<T>(key: string): ChromeStorageStoreAdapter<T> {
+export function chromeStorageSync<T>(key: string): Writable<T> {
     return new ChromeStorageStoreAdapter('sync', key)
 }
 
 /**
  * Creates a new {@link ChromeStorageStoreAdapter} for a given key.
  * Data will be read from chrome.storage.managed.
- * This is a {@link Writable} instance, and can be used in place of
- * svelte stores.
- *
  * NOTE: You cannot write to a managed storage area; it is read-only.
  * @param key The key to read from the `managed` chrome storage area.
  * @throws If the `storage` permission is not present in your manifest.
  * @throws If you try to write to this storage area.
  * */
-export function chromeStorageManaged<T>(key: string): ChromeStorageStoreAdapter<T> {
+export function chromeStorageManaged<T>(key: string): Readable<T> {
     return new ChromeStorageStoreAdapter('managed', key)
 }
 

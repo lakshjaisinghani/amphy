@@ -6,18 +6,22 @@
         notes: string[];
     }
 
-    export let noteGroups: NoteGroup[];
-    export let activeTab: string;
+    interface Props {
+        noteGroups: NoteGroup[];
+        activeTab: string;
+    }
+
+    let { noteGroups, activeTab = $bindable() }: Props = $props();
 
     const activeTabStore = chromeStorageSync<string>("activeTab");
     const notesStore = chromeStorageSync<NoteGroup[]>("notes");
 
-    let isAddingTab = false;
-    let newTabName = "";
+    let isAddingTab = $state(false);
+    let newTabName = $state("");
 
     const MAX_TAB_NAME_LENGTH = 20;
-    let editingTab = "";
-    let editTabName = "";
+    let editingTab = $state("");
+    let editTabName = $state("");
 
     // Generate consistent colors for tabs based on their names
     function getTabColor(tabName: string) {
@@ -111,16 +115,16 @@
                 type="text"
                 bind:value={editTabName}
                 maxlength={MAX_TAB_NAME_LENGTH}
-                on:blur={saveTabEdit}
-                on:keypress={(e) => e.key === "Enter" && saveTabEdit()}
+                onblur={saveTabEdit}
+                onkeypress={(e) => e.key === "Enter" && saveTabEdit()}
                 class="edit-tab-input"
             />
         {:else}
             <div class="select-wrapper">
                 <select
                     bind:value={activeTab}
-                    on:change={() => setActiveTab(activeTab)}
-                    on:dblclick={() => startEditingTab(activeTab)}
+                    onchange={() => setActiveTab(activeTab)}
+                    ondblclick={() => startEditingTab(activeTab)}
                     title="Double-click to edit tab name"
                 >
                     {#each noteGroups as group}
@@ -142,7 +146,7 @@
         {#if activeTab !== "General" && editingTab !== activeTab && !isAddingTab}
             <button
                 class="delete-tab"
-                on:click={() => deleteTab(activeTab)}
+                onclick={() => deleteTab(activeTab)}
                 title="Delete current tab"
                 
             >
@@ -153,7 +157,7 @@
         {#if editingTab !== activeTab && !isAddingTab}
             <button
                 class="add-tab-button"
-                on:click={() => (isAddingTab = true)}
+                onclick={() => (isAddingTab = true)}
                 title="Create new tab"
             >
                 +
@@ -168,16 +172,16 @@
                 bind:value={newTabName}
                 placeholder="New tab name"
                 maxlength={MAX_TAB_NAME_LENGTH}
-                on:keypress={(e) => e.key === "Enter" && handleAddTab()}
+                onkeypress={(e) => e.key === "Enter" && handleAddTab()}
             />
             <button
                 class="confirm-tab"
-                on:click={handleAddTab}
+                onclick={handleAddTab}
                 title="Confirm new tab">✓</button
             >
             <button
                 class="cancel-tab"
-                on:click={() => {
+                onclick={() => {
                     isAddingTab = false;
                     newTabName = "";
                 }}

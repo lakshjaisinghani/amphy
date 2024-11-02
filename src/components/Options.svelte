@@ -3,10 +3,10 @@
     import type { AISettings } from "../lib/types";
 
     const aiSettingsStore = chromeStorageSync<AISettings>("aiSettings");
-    
-    let apiKey = "";
-    let apiKeyInputValue = "";
-    let useWebAI = false;
+
+    let apiKey = $state("");
+    let apiKeyInputValue = $state("");
+    let useWebAI = $state(false);
 
     aiSettingsStore.subscribe((value) => {
         const settings = value || { useWebAI: true, geminiApiKey: "" };
@@ -16,24 +16,24 @@
 
     function saveApiKey() {
         console.log("Saving API key", apiKeyInputValue);
-        aiSettingsStore.update(settings => ({
+        aiSettingsStore.update((settings) => ({
             ...settings,
-            geminiApiKey: apiKeyInputValue
+            geminiApiKey: apiKeyInputValue,
         }));
     }
 
     function clearApiKey() {
-        aiSettingsStore.update(settings => ({
+        aiSettingsStore.update((settings) => ({
             ...settings,
-            geminiApiKey: ""
+            geminiApiKey: "",
         }));
         apiKeyInputValue = "";
     }
 
     function toggleWebAI() {
-        aiSettingsStore.update(settings => ({
+        aiSettingsStore.update((settings) => ({
             ...settings,
-            useWebAI: useWebAI
+            useWebAI: useWebAI,
         }));
     }
 </script>
@@ -51,7 +51,7 @@
                     <input
                         type="checkbox"
                         bind:checked={useWebAI}
-                        on:change={toggleWebAI}
+                        onchange={toggleWebAI}
                     />
                     <span class="slider"></span>
                 </div>
@@ -75,7 +75,7 @@
                         value={apiKey}
                         disabled
                     />
-                    <button on:click={clearApiKey}>Clear</button>
+                    <button onclick={clearApiKey}>Clear</button>
                 {:else}
                     <input
                         type="password"
@@ -83,14 +83,13 @@
                         bind:value={apiKeyInputValue}
                         placeholder="Enter your Gemini API key"
                     />
-                    <button on:click={saveApiKey} disabled={!apiKeyInputValue}
+                    <button onclick={saveApiKey} disabled={!apiKeyInputValue}
                         >Save</button
                     >
                 {/if}
                 <p class="help-text">
                     {#if apiKey}
-                        Your API key is saved. You can clear it using the button
-                        above.
+                        Your API key is saved.
                     {:else}
                         Get your API key from <a
                             href="https://aistudio.google.com/app/apikey"
