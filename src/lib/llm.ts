@@ -96,4 +96,63 @@ export class LLMManager {
                 return false;
         }
     }
+
+    private async isLocalSummarizerAvailable(): Promise<boolean> {
+        if (!window.ai || !window.ai.summarizer) {
+            console.warn("AI summarizer is not supported in this browser");
+            return false;
+        }
+
+        const aiCapabilities = await window.ai.summarizer.capabilities();
+
+        switch (aiCapabilities.available) {
+            case "no":
+                console.warn("AI summarizer is not available");
+                return false;
+            case "after-download":
+                console.warn("AI summarizer available after download")
+                return false;
+            case "readily":
+                return true;
+            default:
+                console.warn("Unknown AI availability status");
+                return false;
+        }
+    }
+
+    async summarize(text: string): Promise<string> {
+        if (!this.llmSession) {
+            throw new Error("LLM session not initialized");
+        }
+
+        if (this.llmSession instanceof GenerativeModel) {
+            return this.summarizeWithGemini(text);
+        }
+        return this.summarizeWithLocalAI(text);
+    }
+
+    private async summarizeWithGemini(text: string): Promise<string> {
+        const llmSession = this.llmSession as GenerativeModel;
+        const prompt = `Provide a concise plain-text summary of the following text:\n\n${text}`;
+        return (await llmSession.generateContent(prompt)).response.text();
+    }
+
+    private async summarizeWithLocalAI(text: string): Promise<string> {
+        if (!(await this.isLocalSummarizerAvailable())) {
+            throw new Error("Local AI summarizer is not available, enable WebAI in the options page instead");
+        }
+        const type: AISummarizerType = "tl;dr";
+        const format: AISummarizerFormat = "plain-text";
+        const length: AISummarizerLength = "short";
+        const summarizer = await window.ai.summarizer.create({
+            type, format, length
+        });
+        try {
+            return await summarizer.summarize(text);
+        } catch (error) {
+            throw new Error("Local AI summarization error: " + error);
+        } finally {
+            summarizer.destroy();
+        }
+    }
 }

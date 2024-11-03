@@ -18,10 +18,12 @@
   let quiz: { question: string; answer: string }[] = $state([]);
   let isGeneratingQuiz = $state(false);
   let visibleQuizAnswers: boolean[] = $state([]);
-  let aiSettings: AISettings = { useWebAI: true, geminiApiKey: "" };
-  let llmManager: LLMManager | null = null;
+  let isGeneratingSummary = $state(false);
 
   let activeNoteGroup = $derived($notesStore?.find((g) => g.tab === activeTab))
+
+  let aiSettings: AISettings = { useWebAI: true, geminiApiKey: "" };
+  let llmManager: LLMManager | null = null;
 
   notesStore.subscribe((value) => {
     noteGroups = value || [{ tab: "General", notes: [] }];
@@ -49,6 +51,7 @@
       }
       return groups;
     });
+    scheduleAutoSummarize();
   }
 
   function createNote(value: string) {
@@ -61,6 +64,7 @@
       }
       return groups;
     });
+    scheduleAutoSummarize();
   }
 
   function deleteNote(index: number) {
@@ -213,6 +217,50 @@ const activeGroup = groups.find((g) => g.tab === activeTab);
       console.error("Failed to copy to clipboard:", error);
     }
   }
+
+  async function summarizeNotes() {
+    const activeNotes = activeNoteGroup?.notes || [];
+    if (activeNotes.length === 0) return;
+    
+    const text = activeNotes.join("\n");
+    
+    isGeneratingSummary = true;
+    try {
+        const systemPrompt = "You are a helpful assistant that provides concise summaries.";
+        llmManager = new LLMManager(aiSettings, systemPrompt);
+        if (!await llmManager.initialize()) {
+            throw new Error("Failed to initialize LLM");
+        }
+        
+        const summary = await llmManager.summarize(text);
+        
+        // Find existing summary note
+        notesStore.update((groups) => {
+            const activeGroup = groups.find((g) => g.tab === activeTab);
+            if (activeGroup) {
+                const summaryIndex = activeGroup.notes.findIndex(note => note.startsWith('📝 Summary:'));
+                if (summaryIndex !== -1) {
+                    // Replace existing summary
+                    activeGroup.notes[summaryIndex] = `📝 Summary: ${summary}`;
+                } else {
+                    // Create new summary if none exists
+                    activeGroup.notes.push(`📝 Summary: ${summary}`);
+                }
+            }
+            isGeneratingSummary = false;
+            return groups;
+        });
+    } catch (error) {
+        console.error("Error summarizing notes:", error);
+        isGeneratingSummary = false;
+    }
+  }
+
+  function scheduleAutoSummarize(timeoutMs:number = 1000) {
+    if (!aiSettings.useWebAI) { // Only auto-summarize for local AI
+       setTimeout(summarizeNotes, timeoutMs);
+    }
+  }
 </script>
 
 <main>
@@ -291,6 +339,12 @@ const activeGroup = groups.find((g) => g.tab === activeTab);
         activeNoteGroup?.notes.length === 0}
     >
       {isGeneratingQuiz ? "Generating Quiz..." : "Generate Quiz"}
+    </button>
+    <button
+      onclick={summarizeNotes}
+      disabled={activeNoteGroup?.notes.length === 0 || isGeneratingSummary}
+    >
+      {isGeneratingSummary ? "Summarizing..." : "Summarize"}
     </button>
     <button
       onclick={exportAllToClipboard}
