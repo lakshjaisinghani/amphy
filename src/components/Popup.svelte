@@ -162,6 +162,57 @@ const activeGroup = groups.find((g) => g.tab === activeTab);
       await askQuestion(userQuestion);
     }
   }
+
+  async function exportAllToClipboard() {
+    // # General
+
+    // ## Notes
+    // 1. First note
+    // 2. Second note
+
+    // ## Question & Answer
+    // Q: What was the question?
+    // A: Here is the answer...
+
+    // ## Quiz
+    // 1. Q: First quiz question
+    //    A: First answer
+    // 2. Q: Second quiz question
+    //    A: Second answer
+    const activeNotes = activeNoteGroup?.notes || [];
+    let clipboardContent = `# ${activeTab}\n\n`; // Start with tab name as title
+
+    // Add notes section if there are notes
+    if (activeNotes.length > 0) {
+      clipboardContent += "## Notes\n";
+      activeNotes.forEach((note, index) => {
+        clipboardContent += `${index + 1}. ${note}\n`;
+      });
+      clipboardContent += "\n";
+    }
+
+    // Add Q&A section if there's a question and answer
+    if (userQuestion && answerToUserQuestion) {
+      clipboardContent += "## Question & Answer\n";
+      clipboardContent += `Q: ${userQuestion}\n`;
+      clipboardContent += `A: ${answerToUserQuestion}\n\n`;
+    }
+
+    // Add quiz section if there are quiz questions
+    if (quiz.length > 0) {
+      clipboardContent += "## Quiz\n";
+      quiz.forEach((q, index) => {
+        clipboardContent += `${index + 1}. Q: ${q.question}\n`;
+        clipboardContent += `   A: ${q.answer}\n`;
+      });
+    }
+
+    try {
+      await navigator.clipboard.writeText(clipboardContent);
+    } catch (error) {
+      console.error("Failed to copy to clipboard:", error);
+    }
+  }
 </script>
 
 <main>
@@ -233,15 +284,20 @@ const activeGroup = groups.find((g) => g.tab === activeTab);
     {/if}
   </div>
   
-  <div id="quiz-section" class="section">
-  <button
-    onclick={generateQuiz}
-    disabled={isGeneratingQuiz ||
-      activeNoteGroup?.notes.length === 0}
-  >
-    {isGeneratingQuiz ? "Generating Quiz..." : "Generate Quiz"}
-  </button>
+  <div id="buttons-section" class="section">
+    <button
+      onclick={generateQuiz}
+      disabled={isGeneratingQuiz ||
+        activeNoteGroup?.notes.length === 0}
+    >
+      {isGeneratingQuiz ? "Generating Quiz..." : "Generate Quiz"}
+    </button>
+    <button
+      onclick={exportAllToClipboard}
+    >Copy all</button>
+  </div>
 
+<div id="quiz-section" class="section">
   {#if quiz.length > 0}
     <div id="quiz">
       <h2>Quiz</h2>
@@ -375,11 +431,16 @@ const activeGroup = groups.find((g) => g.tab === activeTab);
     justify-content: space-around;
   }
 
+  #buttons-section {
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+  }
+
   .answer {
     margin-top: 10px;
     padding: 10px;
-    background-color: #e8f5e9;
-    border-radius: 5px;
+    background-color: #e8f5e9;    border-radius: 5px;
     border-left: 4px solid #4caf50;
   }
 
