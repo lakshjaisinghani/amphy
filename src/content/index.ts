@@ -1,3 +1,5 @@
+import "../tailwind.css";
+
 import { mount } from "svelte"
 import Highlighter from "../components/Highlighter.svelte";
 

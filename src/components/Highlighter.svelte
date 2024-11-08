@@ -11,6 +11,7 @@
     let selectedText = $state("");
     let popupX = $state(0);
     let popupY = $state(0);
+    let popupHovered = $state(false);
 
     notesStore.subscribe((value) => {
         noteGroups = value || [{ tab: "General", notes: [] }];
@@ -18,6 +19,19 @@
 
     activeTabStore.subscribe((value) => {
         activeTab = value || "General";
+    });
+    
+    // Adjust popup position when hovered
+    // if too close to the egdes (quick fix for now)
+    $effect(() => {
+        if (popupHovered) {
+            const element = document.getElementById('highlight-popup');
+            const width = element?.clientWidth;
+
+            if (popupX + (width || 0) >= window.innerWidth) {
+                popupX = window.innerWidth - ((width || 0) * 1.3);
+            }
+        }
     });
 
     function handleDocumentClick(event: MouseEvent) {
@@ -28,8 +42,8 @@
         }
 
         if (selectedText.length > 0 && !popup) {
-            popupX = event.pageX;
-            popupY = event.pageY + 20;
+            popupX = event.pageX - 20;
+            popupY = event.pageY + 10;
         }
     }
 
@@ -73,69 +87,41 @@
 {#if selectedText}
     <div
         bind:this={popup}
-        class="highlight-popup"
+        id="highlight-popup"
+        role="application"
+        class="absolute h-12 hover:w-72 bg-amber-50 outline outline-1 outline-gray-300 rounded-lg p-3 z-50 flex flex-shrink-0 items-center"
         style="left: {popupX}px; top: {popupY}px;"
+        onmouseenter={() => { popupHovered = true }}
+        onmouseleave={() => { popupHovered = false }}
     >
-        <select bind:value={activeTab}>
-            {#each noteGroups as group}
-                <option value={group.tab}>{group.tab}</option>
-            {/each}
-            {#if noteGroups.length === 1 && noteGroups[0].tab === "General"}
-                <option value="Important">Important</option>
-                <option value="Todo">Todo</option>
-                <option value="Research">Research</option>
-            {/if}
-        </select>
-        <button onclick={saveHighlightClick}>Save as Amphy note</button>
-        <span class="click-instruction">Ctrl + Shift + A</span>
+        💊
+        {#if popupHovered}
+            <div class="ml-4">
+                <select bind:value={activeTab} class="text-sm mr-3 bg-amber-50">
+                    {#each noteGroups as group}
+                    <option value={group.tab}>{group.tab}</option>
+                {/each}
+                {#if noteGroups.length === 1 && noteGroups[0].tab === "General"}
+                    <option value="Important">Important</option>
+                    <option value="Todo">Todo</option>
+                    <option value="Research">Research</option>
+                {/if}
+            </select>
+            </div>
+            <div class="text-amber-400 text-xl flex items-center">
+                |
+            </div>
+            <button class="m-4 text-sm bg-amber-100 px-2 py-1 rounded-md" onclick={saveHighlightClick}>Save</button>
+            <span class="text-gray-400 text-xs mx-2">Ctrl + Shift + A</span> 
+        {/if}
     </div>
 {/if}
 
+
+
+
 <style>
-    .highlight-popup {
-        position: absolute;
-        background-color: rgba(255, 255, 255, 0.95);
-        border-radius: 10px;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-        padding: 12px;
-        z-index: 1000;
-        font-family: Arial, sans-serif;
-        transition: all 0.3s ease;
-        display: flex;
-        align-items: center;
-    }
-
-    .highlight-popup button {
-        background-color: transparent;
-        color: #4caf50;
-        border: none;
-        padding: 8px 16px;
-        text-align: center;
-        text-decoration: none;
-        display: inline-block;
-        font-size: 14px;
-        font-weight: bold;
-        margin: 0;
-        cursor: pointer;
-        border-radius: 10px;
-        transition:
-            background-color 0.3s ease,
-            color 0.3s ease;
-    }
-
-    .highlight-popup button:hover {
-        background-color: rgba(76, 175, 80, 0.1);
-        color: #45a049;
-    }
-
-    .click-instruction {
-        color: #999;
-        font-size: 12px;
-        margin-left: 4px;
-        margin-right: 4px;
-    }
-
-    select {
+    /* select {
         padding: 4px 8px;
         margin-right: 8px;
         border-radius: 6px;
@@ -143,5 +129,5 @@
         font-size: 14px;
         background-color: white;
         color: black;
-    }
+    } */
 </style>
