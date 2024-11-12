@@ -97,7 +97,7 @@
         💊
         {#if popupHovered}
             <div class="ml-4">
-                <select bind:value={activeTab} class="text-sm mr-3 bg-amber-50">
+                <select bind:value={activeTab} class="text-sm mr-3 bg-amber-50 ">
                     {#each noteGroups as group}
                     <option value={group.tab}>{group.tab}</option>
                 {/each}
@@ -108,26 +108,15 @@
                 {/if}
             </select>
             </div>
-            <div class="text-amber-400 text-xl flex items-center">
+            <div class="text-amber-400 text-sm flex items-center">
                 |
             </div>
-            <button class="m-4 text-sm bg-amber-100 px-2 py-1 rounded-md" onclick={saveHighlightClick}>Save</button>
-            <span class="text-gray-400 text-xs mx-2">Ctrl + Shift + A</span> 
+            <button class="m-4 text-sm bg-amber-100 px-2 py-1 rounded-md hover:bg-amber-200
+            " onclick={saveHighlightClick}>Save</button>
+            <span class="text-gray-400 text-sm mx-2">Ctrl + Shift + A</span> 
         {/if}
     </div>
 {/if}
 
-
-
-
 <style>
-    /* select {
-        padding: 4px 8px;
-        margin-right: 8px;
-        border-radius: 6px;
-        border: 1px solid #ddddddc4;
-        font-size: 14px;
-        background-color: white;
-        color: black;
-    } */
 </style>
