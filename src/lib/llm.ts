@@ -45,8 +45,8 @@ export class LLMManager {
     private async promptGemini(prompt: string): Promise<string> {
         const llmSession = this.llmSession as GenerativeModel;
         const tokenCount = await llmSession.countTokens(prompt);
-        console.log("Gemini Token count: ", tokenCount);
-        return (await llmSession.generateContent(prompt)).response.text();
+        console.log("Gemini Token count: ", tokenCount.totalTokens);
+        return (await llmSession.generateContent(prompt, { timeout: 3000 })).response.text();
     }
 
     private async promptLocalAI(prompt: string): Promise<string> {

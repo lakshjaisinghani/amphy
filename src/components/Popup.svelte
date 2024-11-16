@@ -119,46 +119,65 @@
     ';
 
     isGeneratingQuiz = true;
+    const MAX_RETRIES = 3;
+    const BASE_DELAY = 500; // Start with 0.5 second delay
+    let attempt = 0;
 
-    try {
-      llmManager = new LLMManager(aiSettings, systemPrompt);
-      if (!(await llmManager.initialize())) {
-        throw new Error("Failed to initialize LLM");
+    while (attempt < MAX_RETRIES) {
+      try {
+        // Add delay for retries (0s, 1s, 2s)
+        if (attempt > 0) {
+          const backoffDelay = BASE_DELAY * Math.pow(2, attempt - 1);
+          await new Promise((resolve) => setTimeout(resolve, backoffDelay));
+        }
+
+        llmManager = new LLMManager(aiSettings, systemPrompt);
+        if (!(await llmManager.initialize())) {
+          throw new Error("Failed to initialize LLM");
+        }
+
+        const activeNotes = activeNoteGroup?.notes || [];
+        const prompt = activeNotes.join("\n");
+        const response = await llmManager.prompt(prompt);
+
+        const rawQuiz = response.split("answers:");
+        // Make sure they can be parsed as JSON arrays by starting and ending with square brackets
+        rawQuiz[0] = "[" + rawQuiz[0].split("[")[1].split("]")[0] + "]";
+        rawQuiz[1] = "[" + rawQuiz[1].split("[")[1].split("]")[0] + "]";
+
+        // Remove trailing ellipsis if any - this might be a remnant of the system prompt
+        rawQuiz[0] = rawQuiz[0].replace(new RegExp("/...$"), "");
+        rawQuiz[1] = rawQuiz[1].replace(new RegExp("/...$"), "");
+
+        const questions = JSON.parse(rawQuiz[0]) as string[];
+        const answers = JSON.parse(rawQuiz[1]) as string[];
+
+        quiz = questions.map((question, index) => ({
+          question,
+          answer: answers[index],
+        }));
+        visibleQuizAnswers = new Array(quiz.length).fill(false);
+        break; // Success! Exit the retry loop
+      } catch (error) {
+        attempt++;
+        console.error(
+          `Error generating quiz (attempt ${attempt}/${MAX_RETRIES}, next delay: ${BASE_DELAY * Math.pow(2, attempt)}ms):`,
+          error,
+        );
+
+        if (attempt === MAX_RETRIES) {
+          quiz = [
+            {
+              question: "Error generating quiz",
+              answer: "Please try again",
+            },
+          ];
+        }
+        // If not final attempt, continue to next iteration with increased delay
       }
-
-      const activeNotes = activeNoteGroup?.notes || [];
-      const prompt = activeNotes.join("\n");
-      const response = await llmManager.prompt(prompt);
-
-      const rawQuiz = response.split("answers:");
-
-      // Make sure they can be parsed as JSON arrays by starting and ending with square brackets
-      rawQuiz[0] = "[" + rawQuiz[0].split("[")[1].split("]")[0] + "]";
-      rawQuiz[1] = "[" + rawQuiz[1].split("[")[1].split("]")[0] + "]";
-
-      // Remove trailing ellipsis if any - this might be a remnant of the system prompt
-      rawQuiz[0] = rawQuiz[0].replace(new RegExp("/...$"), "");
-      rawQuiz[1] = rawQuiz[1].replace(new RegExp("/...$"), "");
-
-      const questions = JSON.parse(rawQuiz[0]) as string[];
-      const answers = JSON.parse(rawQuiz[1]) as string[];
-
-      quiz = questions.map((question, index) => ({
-        question,
-        answer: answers[index],
-      }));
-      visibleQuizAnswers = new Array(quiz.length).fill(false);
-    } catch (error) {
-      console.error("Error generating quiz:", error);
-      quiz = [
-        {
-          question: "Error generating quiz -> " + error,
-          answer: "Please try again",
-        },
-      ];
-    } finally {
-      isGeneratingQuiz = false;
     }
+
+    isGeneratingQuiz = false;
   }
 
   function toggleAnswer(index: number) {
