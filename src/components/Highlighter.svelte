@@ -83,7 +83,7 @@
         onmouseleave={() => (isExpanded = false)}
         onclick={(e) => e.stopPropagation()}
         onkeydown={(e) => {
-            if (e.key === 'Enter' || e.key === ' ') {
+            if (e.key === "Enter" || e.key === " ") {
                 isExpanded = !isExpanded;
                 e.preventDefault();
                 e.stopPropagation();

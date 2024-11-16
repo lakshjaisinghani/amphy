@@ -148,7 +148,6 @@
                 class="delete-tab"
                 onclick={() => deleteTab(activeTab)}
                 title="Delete current tab"
-                
             >
                 ×
             </button>
@@ -272,7 +271,6 @@
 
     .confirm-tab {
         color: #2ecc71;
-
     }
 
     .cancel-tab {

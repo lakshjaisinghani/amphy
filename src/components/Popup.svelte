@@ -20,7 +20,7 @@
   let visibleQuizAnswers: boolean[] = $state([]);
   let isGeneratingSummary = $state(false);
 
-  let activeNoteGroup = $derived($notesStore?.find((g) => g.tab === activeTab))
+  let activeNoteGroup = $derived($notesStore?.find((g) => g.tab === activeTab));
 
   let aiSettings: AISettings = { useWebAI: true, geminiApiKey: "" };
   let llmManager: LLMManager | null = null;
@@ -69,7 +69,7 @@
 
   function deleteNote(index: number) {
     notesStore.update((groups) => {
-const activeGroup = groups.find((g) => g.tab === activeTab);
+      const activeGroup = groups.find((g) => g.tab === activeTab);
       if (activeGroup && activeGroup.notes.length > index) {
         activeGroup.notes.splice(index, 1);
       }
@@ -79,18 +79,20 @@ const activeGroup = groups.find((g) => g.tab === activeTab);
 
   async function askQuestion(prompt: string) {
     const activeNotes = activeNoteGroup?.notes || [];
-    const systemPrompt = 
+    const systemPrompt =
       "You answer questions based on notes given below. \
       Do not add extra info not found in notes. \
       NOTES: \
-    " + "\n" + activeNotes.join("\n");
+    " +
+      "\n" +
+      activeNotes.join("\n");
 
     answerToUserQuestion = "";
     isGeneratingAnswerToUserQuestion = true;
 
     try {
       llmManager = new LLMManager(aiSettings, systemPrompt);
-      if (!await llmManager.initialize()) {
+      if (!(await llmManager.initialize())) {
         throw new Error("Failed to initialize LLM");
       }
       answerToUserQuestion = await llmManager.prompt(prompt);
@@ -120,27 +122,27 @@ const activeGroup = groups.find((g) => g.tab === activeTab);
 
     try {
       llmManager = new LLMManager(aiSettings, systemPrompt);
-      if (!await llmManager.initialize()) {
+      if (!(await llmManager.initialize())) {
         throw new Error("Failed to initialize LLM");
       }
 
       const activeNotes = activeNoteGroup?.notes || [];
       const prompt = activeNotes.join("\n");
       const response = await llmManager.prompt(prompt);
-      
+
       const rawQuiz = response.split("answers:");
-      
+
       // Make sure they can be parsed as JSON arrays by starting and ending with square brackets
       rawQuiz[0] = "[" + rawQuiz[0].split("[")[1].split("]")[0] + "]";
       rawQuiz[1] = "[" + rawQuiz[1].split("[")[1].split("]")[0] + "]";
-      
+
       // Remove trailing ellipsis if any - this might be a remnant of the system prompt
-      rawQuiz[0] = rawQuiz[0].replace(new RegExp("/\.\.\.$"), ""); 
-      rawQuiz[1] = rawQuiz[1].replace(new RegExp("/\.\.\.$"), "");
-      
+      rawQuiz[0] = rawQuiz[0].replace(new RegExp("/...$"), "");
+      rawQuiz[1] = rawQuiz[1].replace(new RegExp("/...$"), "");
+
       const questions = JSON.parse(rawQuiz[0]) as string[];
       const answers = JSON.parse(rawQuiz[1]) as string[];
-      
+
       quiz = questions.map((question, index) => ({
         question,
         answer: answers[index],
@@ -149,7 +151,10 @@ const activeGroup = groups.find((g) => g.tab === activeTab);
     } catch (error) {
       console.error("Error generating quiz:", error);
       quiz = [
-        { question: "Error generating quiz -> " + error, answer: "Please try again" },
+        {
+          question: "Error generating quiz -> " + error,
+          answer: "Please try again",
+        },
       ];
     } finally {
       isGeneratingQuiz = false;
@@ -221,44 +226,48 @@ const activeGroup = groups.find((g) => g.tab === activeTab);
   async function summarizeNotes() {
     const activeNotes = activeNoteGroup?.notes || [];
     if (activeNotes.length === 0) return;
-    
+
     const text = activeNotes.join("\n");
-    
+
     isGeneratingSummary = true;
     try {
-        const systemPrompt = "You are a helpful assistant that provides concise summaries.";
-        llmManager = new LLMManager(aiSettings, systemPrompt);
-        if (!await llmManager.initialize()) {
-            throw new Error("Failed to initialize LLM");
+      const systemPrompt =
+        "You are a helpful assistant that provides concise summaries.";
+      llmManager = new LLMManager(aiSettings, systemPrompt);
+      if (!(await llmManager.initialize())) {
+        throw new Error("Failed to initialize LLM");
+      }
+
+      const summary = await llmManager.summarize(text);
+
+      // Find existing summary note
+      notesStore.update((groups) => {
+        const activeGroup = groups.find((g) => g.tab === activeTab);
+        if (activeGroup) {
+          const summaryIndex = activeGroup.notes.findIndex((note) =>
+            note.startsWith("📝 Summary:"),
+          );
+          if (summaryIndex !== -1) {
+            // Replace existing summary
+            activeGroup.notes[summaryIndex] = `📝 Summary: ${summary}`;
+          } else {
+            // Create new summary if none exists
+            activeGroup.notes.push(`📝 Summary: ${summary}`);
+          }
         }
-        
-        const summary = await llmManager.summarize(text);
-        
-        // Find existing summary note
-        notesStore.update((groups) => {
-            const activeGroup = groups.find((g) => g.tab === activeTab);
-            if (activeGroup) {
-                const summaryIndex = activeGroup.notes.findIndex(note => note.startsWith('📝 Summary:'));
-                if (summaryIndex !== -1) {
-                    // Replace existing summary
-                    activeGroup.notes[summaryIndex] = `📝 Summary: ${summary}`;
-                } else {
-                    // Create new summary if none exists
-                    activeGroup.notes.push(`📝 Summary: ${summary}`);
-                }
-            }
-            isGeneratingSummary = false;
-            return groups;
-        });
-    } catch (error) {
-        console.error("Error summarizing notes:", error);
         isGeneratingSummary = false;
+        return groups;
+      });
+    } catch (error) {
+      console.error("Error summarizing notes:", error);
+      isGeneratingSummary = false;
     }
   }
 
-  function scheduleAutoSummarize(timeoutMs:number = 1000) {
-    if (!aiSettings.useWebAI) { // Only auto-summarize for local AI
-       setTimeout(summarizeNotes, timeoutMs);
+  function scheduleAutoSummarize(timeoutMs: number = 1000) {
+    if (!aiSettings.useWebAI) {
+      // Only auto-summarize for local AI
+      setTimeout(summarizeNotes, timeoutMs);
     }
   }
 </script>
@@ -266,8 +275,8 @@ const activeGroup = groups.find((g) => g.tab === activeTab);
 <main class="popup-container">
   <div class="header">
     <TabBar {noteGroups} {activeTab} />
-    <button 
-      class="options-button" 
+    <button
+      class="options-button"
       onclick={() => chrome.runtime.openOptionsPage()}
     >
       ⚙️
@@ -279,10 +288,12 @@ const activeGroup = groups.find((g) => g.tab === activeTab);
         <div class="note-item">
           <textarea
             use:autosize
-            onchange={(e:Event) => {
+            onchange={(e: Event) => {
               const target = e.target as HTMLTextAreaElement;
-              updateNote(index, target.value)}}
-            class="note-text">{note}</textarea>
+              updateNote(index, target.value);
+            }}
+            class="note-text">{note}</textarea
+          >
 
           <button class="delete-button" onclick={() => deleteNote(index)}>
             ×
@@ -295,7 +306,7 @@ const activeGroup = groups.find((g) => g.tab === activeTab);
     <div class="note-item">
       <textarea
         use:autosize
-        onchange={(e:Event) => {
+        onchange={(e: Event) => {
           const target = e.target as HTMLTextAreaElement;
           createNote(target.value);
           target.value = ""; // Clear the textarea for the next new note
@@ -307,66 +318,67 @@ const activeGroup = groups.find((g) => g.tab === activeTab);
   </div>
 
   {#if !isNoteGroupEmpty(activeTab)}
-  <div class="section">
-    <div id="ask-question-section">
-      <input
-        class="user-question-input"
-        type="text"
-        bind:value={userQuestion}
-        onkeypress={(e) => e.key === "Enter" && handleAskQuestion()}
-        placeholder="Ask a question about your notes"
-      />
-      <button class="send-arrow" aria-label="Send message">
-        <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+    <div class="section">
+      <div id="ask-question-section">
+        <input
+          class="user-question-input"
+          type="text"
+          bind:value={userQuestion}
+          onkeypress={(e) => e.key === "Enter" && handleAskQuestion()}
+          placeholder="Ask a question about your notes"
+        />
+        <button class="send-arrow" aria-label="Send message">
+          <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
             <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"></path>
-        </svg>
-      </button>
+          </svg>
+        </button>
+      </div>
+
+      {#if answerToUserQuestion}
+        <div id="answer">
+          {@html marked(answerToUserQuestion)}
+        </div>
+      {/if}
     </div>
 
-    {#if answerToUserQuestion}
-      <div id="answer">
-        {@html marked(answerToUserQuestion)}
-      </div>
-    {/if}
-  </div>
-  
-  <div class="bottom-actions">
-    <button
-      class="action-button"
-      onclick={generateQuiz}
+    <div class="bottom-actions">
+      <button
+        class="action-button"
+        onclick={generateQuiz}
         disabled={isGeneratingQuiz || activeNoteGroup?.notes.length === 0}
-    >
-      {isGeneratingQuiz ? "Generating Quiz..." : "Generate Quiz"}
-    </button>
-    <button
-    class="action-button"
-      onclick={summarizeNotes}
-      disabled={activeNoteGroup?.notes.length === 0 || isGeneratingSummary}
-    >
-      {isGeneratingSummary ? "Summarizing..." : "Summarize"}
-    </button>
+      >
+        {isGeneratingQuiz ? "Generating Quiz..." : "Generate Quiz"}
+      </button>
+      <button
+        class="action-button"
+        onclick={summarizeNotes}
+        disabled={activeNoteGroup?.notes.length === 0 || isGeneratingSummary}
+      >
+        {isGeneratingSummary ? "Summarizing..." : "Summarize"}
+      </button>
       <button class="action-button" onclick={exportAllToClipboard}
         >Copy all</button
       >
-  </div>
-
-<div id="quiz-section" class="section">
-  {#if quiz.length > 0}
-    <div id="quiz">
-      <h2>Quiz</h2>
-      <ol>
-        {#each quiz as q, index}
-          <li>
-            <button onclick={() => toggleAnswer(index)}>{q.question}</button>
-            {#if visibleQuizAnswers[index]}
-              <p class="answer">{q.answer}</p>
-            {/if}
-          </li>
-        {/each}
-      </ol>
     </div>
-  {/if}
-  </div>
+
+    <div id="quiz-section" class="section">
+      {#if quiz.length > 0}
+        <div id="quiz">
+          <h2>Quiz</h2>
+          <ol>
+            {#each quiz as q, index}
+              <li>
+                <button onclick={() => toggleAnswer(index)}>{q.question}</button
+                >
+                {#if visibleQuizAnswers[index]}
+                  <p class="answer">{q.answer}</p>
+                {/if}
+              </li>
+            {/each}
+          </ol>
+        </div>
+      {/if}
+    </div>
   {/if}
 </main>
 
