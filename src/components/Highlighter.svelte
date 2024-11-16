@@ -11,6 +11,7 @@
     let selectedText = $state("");
     let popupX = $state(0);
     let popupY = $state(0);
+    let isExpanded = $state(false);
 
     notesStore.subscribe((value) => {
         noteGroups = value || [{ tab: "General", notes: [] }];
@@ -25,11 +26,12 @@
 
         if (popup && !popup.contains(event.target as Node)) {
             selectedText = "";
+            isExpanded = false;
         }
 
         if (selectedText.length > 0 && !popup) {
             popupX = event.pageX;
-            popupY = event.pageY + 20;
+            popupY = event.pageY + 10;
         }
     }
 
@@ -73,21 +75,36 @@
 {#if selectedText}
     <div
         bind:this={popup}
-        class="highlight-popup"
+        class="highlight-popup {isExpanded ? 'expanded' : ''}"
         style="left: {popupX}px; top: {popupY}px;"
+        role="button"
+        tabindex="0"
+        onmouseenter={() => (isExpanded = true)}
+        onmouseleave={() => (isExpanded = false)}
+        onclick={(e) => e.stopPropagation()}
+        onkeydown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+                isExpanded = !isExpanded;
+                e.preventDefault();
+                e.stopPropagation();
+            }
+        }}
     >
-        <select bind:value={activeTab}>
-            {#each noteGroups as group}
-                <option value={group.tab}>{group.tab}</option>
-            {/each}
-            {#if noteGroups.length === 1 && noteGroups[0].tab === "General"}
-                <option value="Important">Important</option>
-                <option value="Todo">Todo</option>
-                <option value="Research">Research</option>
-            {/if}
-        </select>
-        <button onclick={saveHighlightClick}>Save as Amphy note</button>
-        <span class="click-instruction">Ctrl + Shift + A</span>
+        <div class="pill-icon">💊</div>
+        {#if isExpanded}
+            <select bind:value={activeTab}>
+                {#each noteGroups as group}
+                    <option value={group.tab}>{group.tab}</option>
+                {/each}
+                {#if noteGroups.length === 1 && noteGroups[0].tab === "General"}
+                    <option value="Important">Important</option>
+                    <option value="Todo">Todo</option>
+                    <option value="Research">Research</option>
+                {/if}
+            </select>
+            <button onclick={saveHighlightClick}>Save as Amphy note</button>
+            <span class="click-instruction">Ctrl + Shift + A</span>
+        {/if}
     </div>
 {/if}
 
@@ -97,25 +114,30 @@
         background-color: rgba(255, 255, 255, 0.95);
         border-radius: 10px;
         box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-        padding: 12px;
+        padding: 8px;
         z-index: 1000;
         font-family: Arial, sans-serif;
         transition: all 0.3s ease;
+    }
+
+    .highlight-popup.expanded {
         display: flex;
         align-items: center;
+    }
+
+    .pill-icon {
+        font-size: 14px;
     }
 
     .highlight-popup button {
         background-color: transparent;
         color: #4caf50;
         border: none;
-        padding: 8px 16px;
         text-align: center;
         text-decoration: none;
         display: inline-block;
-        font-size: 14px;
+        font-size: 12px;
         font-weight: bold;
-        margin: 0;
         cursor: pointer;
         border-radius: 10px;
         transition:
@@ -131,16 +153,15 @@
     .click-instruction {
         color: #999;
         font-size: 12px;
-        margin-left: 4px;
-        margin-right: 4px;
+        margin-left: 2px;
+        margin-right: 2px;
     }
 
     select {
-        padding: 4px 8px;
-        margin-right: 8px;
+        margin-right: 4px;
         border-radius: 6px;
         border: 1px solid #ddddddc4;
-        font-size: 14px;
+        font-size: 12px;
         background-color: white;
         color: black;
     }
