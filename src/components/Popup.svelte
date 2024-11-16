@@ -263,7 +263,7 @@ const activeGroup = groups.find((g) => g.tab === activeTab);
   }
 </script>
 
-<main>
+<main class="popup-container">
   <div class="header">
     <TabBar {noteGroups} {activeTab} />
     <button 
@@ -273,7 +273,6 @@ const activeGroup = groups.find((g) => g.tab === activeTab);
       ⚙️
     </button>
   </div>
-
   <div id="notes" class="section">
     {#if !isNoteGroupEmpty(activeTab)}
       {#each noteGroups.find((g) => g.tab === activeTab)?.notes || [] as note, index}
@@ -317,11 +316,10 @@ const activeGroup = groups.find((g) => g.tab === activeTab);
         onkeypress={(e) => e.key === "Enter" && handleAskQuestion()}
         placeholder="Ask a question about your notes"
       />
-      <button
-        onclick={handleAskQuestion}
-        disabled={!userQuestion.trim() || isGeneratingAnswerToUserQuestion}
-      >
-        {isGeneratingAnswerToUserQuestion ? "Answering..." : "Ask"}
+      <button class="send-arrow" aria-label="Send message">
+        <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"></path>
+        </svg>
       </button>
     </div>
 
@@ -332,23 +330,24 @@ const activeGroup = groups.find((g) => g.tab === activeTab);
     {/if}
   </div>
   
-  <div id="buttons-section" class="section">
+  <div class="bottom-actions">
     <button
+      class="action-button"
       onclick={generateQuiz}
-      disabled={isGeneratingQuiz ||
-        activeNoteGroup?.notes.length === 0}
+        disabled={isGeneratingQuiz || activeNoteGroup?.notes.length === 0}
     >
       {isGeneratingQuiz ? "Generating Quiz..." : "Generate Quiz"}
     </button>
     <button
+    class="action-button"
       onclick={summarizeNotes}
       disabled={activeNoteGroup?.notes.length === 0 || isGeneratingSummary}
     >
       {isGeneratingSummary ? "Summarizing..." : "Summarize"}
     </button>
-    <button
-      onclick={exportAllToClipboard}
-    >Copy all</button>
+      <button class="action-button" onclick={exportAllToClipboard}
+        >Copy all</button
+      >
   </div>
 
 <div id="quiz-section" class="section">
@@ -372,6 +371,83 @@ const activeGroup = groups.find((g) => g.tab === activeTab);
 </main>
 
 <style>
+  .popup-container {
+    min-width: 300px;
+    max-width: 400px;
+    padding: 8px;
+    background: #fff;
+  }
+
+  main {
+    padding: 16px;
+    max-width: 400px;
+    background: #fff;
+    border-radius: 16px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  }
+
+  .note-item {
+    position: relative;
+    background-color: #fff9e6;
+    border-radius: 12px;
+    padding: 12px;
+    margin-bottom: 12px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  }
+
+  .note-text {
+    width: 100%;
+    padding-right: 20px;
+    background: transparent;
+    border-radius: 8px;
+    font-size: 14px;
+    line-height: 1.5;
+  }
+
+  #ask-question-section {
+    margin-top: 16px;
+    background: #f5f5f5;
+    border-radius: 24px;
+    padding: 8px 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .user-question-input {
+    background: transparent;
+    font-size: 14px;
+  }
+
+  button {
+    background-color: #ff9966; /* Coral color from the image */
+    border-radius: 20px;
+    font-size: 14px;
+    padding: 8px 16px;
+  }
+
+  button:hover {
+    background-color: #ff8652;
+  }
+
+  .answer {
+    background-color: #f5f5f5;
+    border-left: none;
+    border-radius: 12px;
+    padding: 12px;
+  }
+
+  #quiz button {
+    background-color: #f5f5f5;
+    border: none;
+    border-radius: 12px;
+  }
+
+  .options-button {
+    font-size: 16px;
+    color: #666;
+  }
+
   .note-item {
     display: flex;
     justify-content: space-between;
@@ -398,16 +474,24 @@ const activeGroup = groups.find((g) => g.tab === activeTab);
     border-color: #3498db;
   }
   .delete-button {
-    background-color: #e74c3c;
-    color: white;
-    border: none;
-    padding: 5px 10px;
-    border-radius: 3px;
-    cursor: pointer;
-    transition: background-color 0.3s;
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    width: 20px;
+    height: 20px;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    background-color: transparent;
+    color: #666;
+    opacity: 0.6;
+    border-radius: 50%;
   }
   .delete-button:hover {
-    background-color: #c0392b;
+    opacity: 1;
+    background-color: rgba(0, 0, 0, 0.1);
   }
   .user-question-input {
     flex-grow: 1;
@@ -418,7 +502,7 @@ const activeGroup = groups.find((g) => g.tab === activeTab);
     font-size: 1em;
   }
   .section {
-    margin-top: 20px;
+    margin-top: 6px;
   }
 
   button {
@@ -485,16 +569,11 @@ const activeGroup = groups.find((g) => g.tab === activeTab);
     justify-content: space-around;
   }
 
-  #buttons-section {
-    display: flex;
-    flex-direction: row;
-    justify-content: space-between;
-  }
-
   .answer {
     margin-top: 10px;
     padding: 10px;
-    background-color: #e8f5e9;    border-radius: 5px;
+    background-color: #e8f5e9;
+    border-radius: 5px;
     border-left: 4px solid #4caf50;
   }
 
@@ -518,5 +597,55 @@ const activeGroup = groups.find((g) => g.tab === activeTab);
   .options-button:hover {
     transform: rotate(45deg);
     background: none;
+  }
+
+  .send-arrow {
+    width: 24px;
+    height: 24px;
+    padding: 6px;
+    border-radius: 50%;
+    background: #ff9966;
+    cursor: pointer;
+    transition: background-color 0.2s;
+    border: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .send-arrow:hover {
+    background: #ff8652;
+  }
+
+  .send-arrow svg {
+    width: 16px;
+    height: 16px;
+    fill: white;
+  }
+
+  .bottom-actions {
+    display: flex;
+    gap: 12px;
+    margin-top: 12px;
+    padding-top: 8px;
+  }
+
+  .action-button {
+    background: transparent;
+    color: #666;
+    font-size: 12px;
+    padding: 4px 8px;
+    border-radius: 12px;
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .action-button:hover {
+    background: rgba(0, 0, 0, 0.05);
+    color: #333;
   }
 </style>
